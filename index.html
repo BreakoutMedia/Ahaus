@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Digital Signage Player</title>
+<style>
+html,body {margin:0;padding:0;width:100%;height:100%;background:#000;}
+#container {width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#000;color:#fff;font-family:sans-serif;font-size:48px;}
+video, img, iframe {max-width:100%;max-height:100%;width:100%;height:100%;object-fit:cover;border:none;}
+</style>
+</head>
+<body>
+<div id="container">Lade...</div>
+<script>
+const params = new URLSearchParams(location.search);
+const screen = params.get('screen') || 'ahaus';
+const manifestUrl = `manifests/${screen}.json`;
+let playlist = [];
+let index = 0;
+
+async function loadManifest(){
+  const res = await fetch(manifestUrl+'?t='+Date.now());
+  if(!res.ok){document.getElementById('container').innerText='Fehler: Manifest nicht gefunden';return;}
+  playlist = (await res.json()).media || [];
+}
+
+async function playNext(){
+  if(playlist.length === 0){document.getElementById('container').innerText='Keine Inhalte';return;}
+  const item = playlist[index];
+  const cont = document.getElementById('container');
+  cont.innerHTML = '';
+  let el;
+  if(item.type === 'video'){
+    el = document.createElement('video');
+    el.src = item.src;
+    el.autoplay = true;
+    el.muted = true;
+    el.playsInline = true;
+  } else if(item.type === 'image'){
+    el = document.createElement('img');
+    el.src = item.src;
+  } else if(item.type === 'html'){
+    el = document.createElement('iframe');
+    el.src = item.src;
+  }
+  cont.appendChild(el);
+  setTimeout(()=>{
+    index = (index+1) % playlist.length;
+    playNext();
+  }, (item.duration || 10) * 1000);
+}
+
+(async()=>{
+  await loadManifest();
+  playNext();
+  setInterval(loadManifest,60000);
+})();
+</script>
+</body>
+</html>
